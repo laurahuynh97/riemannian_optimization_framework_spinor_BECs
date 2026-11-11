@@ -3270,7 +3270,7 @@ V_fun(x) =  0.5*(x[1]^2 + x[2]^2) + 25*sin(pi*x[1]/2)^2 + 25*sin(pi*x[2]/2)^2
 # Specify maximum number of iterations
     maxIter = 6000
 # Stopping criterion: Res < tol
-tol = 1e-9
+tol = 1e-8
 
 # Initialize mesh and parameter structs
     params = Params(order_finite_element, a, b, F, N, β0, β1, p, q, V_fun, C_mag, maxIter, tol)
@@ -3303,7 +3303,7 @@ tol = 1e-9
     (u_final, Energies, Residuals, Diffs, dn_norm, μ, λ, taus, N1_vec, N0_vec, Nm1_vec, time_vec, result_summary) = spin1_gradient_flow(
                 u_init, mesh, params, M;
                 metric = "A0",
-                step_control = "optimal",
+                step_control = "MM",
                 retraction = "newton"
             )
 # Print final results
