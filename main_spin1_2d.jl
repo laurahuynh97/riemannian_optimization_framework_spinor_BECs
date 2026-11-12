@@ -1081,18 +1081,18 @@ function get_residual!(u, params, M, E_prime, ws)
 
     det_inv = 1.0 / (LuLu - C_mag^2)
 
-    μ = det_inv * (LuLu * b1 - C_mag * b2)
-    λ = det_inv * (b2 - C_mag * b1)
+    λ = det_inv * (LuLu * b1 - C_mag * b2)
+    μ = det_inv * (b2 - C_mag * b1)
 
-    res_u1  .= E_prime.u1  .- (μ + λ) .* Mu1
-    res_u0  .= E_prime.u0  .- μ       .* Mu0
-    res_um1 .= E_prime.um1 .- (μ - λ) .* Mum1
+    res_u1  .= E_prime.u1  .- (λ+ μ) .* Mu1
+    res_u0  .= E_prime.u0  .- λ      .* Mu0
+    res_um1 .= E_prime.um1 .- (λ- μ) .* Mum1
 
     res = sqrt(real(
         dot(res_u1, M, res_u1) + dot(res_u0, M, res_u0) + dot(res_um1, M, res_um1)
     ))
 
-    return res, μ, λ, SpinorState(Mu1, Mu0, Mum1)
+    return res, λ, μ,  SpinorState(Mu1, Mu0, Mum1)
 end
 
 function apply_A_with_spin_parallel!(
@@ -1733,16 +1733,16 @@ function get_Riemannian_gradient(u, Mu, E_prime, mesh, params, metric, P, res, w
 
     rhs = [bN, bM]
 
-    μ_A, λ_A = G \ rhs
+    λ_A, μ_A = G \ rhs
 
 
     grad = SpinorState(
-        sobolev_grad.u1 - μ_A * ∇_A_N.u1 - λ_A * ∇_A_M.u1,
-        sobolev_grad.u0 - μ_A * ∇_A_N.u0 - λ_A * ∇_A_M.u0,
-        sobolev_grad.um1 - μ_A * ∇_A_N.um1 - λ_A * ∇_A_M.um1
+        sobolev_grad.u1 - λ_A * ∇_A_N.u1 - μ_A * ∇_A_M.u1,
+        sobolev_grad.u0 - λ_A * ∇_A_N.u0 - μ_A* ∇_A_M.u0,
+        sobolev_grad.um1 - λ_A * ∇_A_N.um1 - μ_A * ∇_A_M.um1
     )
 
-    return grad, μ_A, λ_A
+    return grad, λ_A, μ_A
  
 end
 
@@ -2910,10 +2910,10 @@ function spin1_gradient_flow(
         t_start = time()
 
         E_prime = frechet_derivative!(u, mesh, params, ws) #returns SpinorState
-        res, μ, λ, Mu = get_residual!(u, params, M, E_prime, ws)
+        res, λ , μ, Mu = get_residual!(u, params, M, E_prime, ws)
         push!(Residuals, res)
 
-         gradR, μ_A, λ_A = get_Riemannian_gradient(u, Mu, E_prime, mesh, params, metric, P, res, ws)
+         gradR, λ_A, μ_A = get_Riemannian_gradient(u, Mu, E_prime, mesh, params, metric, P, res, ws)
 
         if j > 1
             copyto!(dn_old.u1,  dn.u1)
@@ -2937,7 +2937,7 @@ function spin1_gradient_flow(
         if abs(tangent_check_N) > 1e-8 || abs(tangent_check_M) > 1e-8
             @show(tangent_check_M, tangent_check_N)
         end
-        if j <= 2
+        if j <= 3
             if step_control == "MM" || step_control == "BB" 
                  τ, E_new, u_new = get_new_energy(u, u_old, dn, dn_old, mesh, params, M, spin_mats, 1e-6, 0.5, fixed_τ, "optimal", retraction, ws, metric)
             elseif metric == "A0"
@@ -2988,8 +2988,8 @@ function spin1_gradient_flow(
 
         iter_time = time() - t_start
   
-        @printf("\n P%d [%s | %s | %s] Iter: %d | Energy: %.12f | μ: %.12f | λ: %.12f | diff: %.12e | Res: %.12e | τ: %.17e | Time: %.3f s\n", 
-                order_finite_element, metric, step_control, retraction, j, E_new, μ/2, λ/2, diff, res, τ, iter_time)
+        @printf("\n P%d [%s | %s | %s] Iter: %d | Energy: %.12f | λ: %.12f | μ: %.12f | diff: %.12e | Res: %.12e | τ: %.17e | Time: %.3f s\n", 
+                order_finite_element, metric, step_control, retraction, j, E_new, λ/2, μ/2, diff, res, τ, iter_time)
         push!(time_vec, iter_time)
 
         if res < params.tol         
@@ -3019,12 +3019,12 @@ function spin1_gradient_flow(
 
     result_summary = @sprintf("""
         __________Final Result: [%s | %s | %s]__________
-        P%d | Iter: %d | Energy: %.12f | μ: %.12f | λ: %.12f | Res: %.12e | Norm dn: %.12e | Average time per iteration: %.3f s | Total time: %.3f min
+        P%d | Iter: %d | Energy: %.12f | λ: %.12f | μ: %.12f | Res: %.12e | Norm dn: %.12e | Average time per iteration: %.3f s | Total time: %.3f min
         Component masses: N₋₁ = %.12f | N₀ = %.12f | N₁ = %.12f
         %s
         """,
             metric, step_control, retraction, order_finite_element, length(Energies), Energies[end],
-            μ / 2, λ / 2, res, dn_norm, avg_time, total_time,
+            λ / 2, μ / 2, res, dn_norm, avg_time, total_time,
             Nm1, N0, N1, energy_status
         )
 
