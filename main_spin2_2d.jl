@@ -2341,7 +2341,7 @@ function spin2_gradient_flow(
             @show(tangent_check_M, tangent_check_N)
         end
 
-        if j <= 3
+        if j <= 5
             if step_control == "MM" || step_control == "BB"
                  τ, E_new, u_new = get_new_energy(u, u_old, dn, dn_old, mesh, params, M, spin_mats, 1e-6, 1.0, fixed_τ, "optimal", retraction, ws, metric)
             elseif metric == "A0"
